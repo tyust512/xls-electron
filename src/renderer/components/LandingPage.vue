@@ -1,43 +1,73 @@
 <template>
   <div id="wrapper">
-    <img id="logo" src="~@/assets/logo.png" alt="electron-vue">
-    <main>
-      <div class="left-side">
-        <span class="title">
-          Welcome to your new project!
-        </span>
-        <system-information></system-information>
-      </div>
+    <!-- <SystemInformation></SystemInformation> -->
 
-      <div class="right-side">
-        <div class="doc">
-          <div class="title">Getting Started</div>
-          <p>
-            electron-vue comes packed with detailed documentation that covers everything from
-            internal configurations, using the project structure, building your application,
-            and so much more.
-          </p>
-          <button @click="open('https://simulatedgreg.gitbooks.io/electron-vue/content/')">Read the Docs</button><br><br>
-        </div>
-        <div class="doc">
-          <div class="title alt">Other Documentation</div>
-          <button class="alt" @click="open('https://electron.atom.io/docs/')">Electron</button>
-          <button class="alt" @click="open('https://vuejs.org/v2/guide/')">Vue.js</button>
-        </div>
-      </div>
-    </main>
+    <ul>
+      <li v-for="file in files" :key="file">
+        {{file.name}} - Error: {{file.error}}, Success: {{file.success}}
+      </li>
+    </ul>
+    <file-upload
+      ref="upload"
+      v-model="files"
+      post-action="/post.method"
+      put-action="/put.method"
+      @input-file="inputFile"
+      @input-filter="inputFilter"
+    >
+    上传文件
+    </file-upload>
+    <button v-show="!$refs.upload || !$refs.upload.active" @click.prevent="$refs.upload.active = true" type="button">开始上传</button>
+    <button v-show="$refs.upload && $refs.upload.active" @click.prevent="$refs.upload.active = false" type="button">停止上传</button>
   </div>
 </template>
 
 <script>
-  import SystemInformation from './LandingPage/SystemInformation'
-
   export default {
     name: 'landing-page',
-    components: { SystemInformation },
+    data: function () {
+      return {
+        files: []
+      }
+    },
     methods: {
-      open (link) {
-        this.$electron.shell.openExternal(link)
+      /**
+       * Has changed
+       * @param  Object|undefined   newFile   只读
+       * @param  Object|undefined   oldFile   只读
+       * @return undefined
+       */
+      inputFile: function (newFile, oldFile) {
+        if (newFile && oldFile && !newFile.active && oldFile.active) {
+          // 获得相应数据
+          console.log('response', newFile.response)
+          if (newFile.xhr) {
+            //  获得响应状态码
+            console.log('status', newFile.xhr.status)
+          }
+        }
+      },
+      /**
+       * Pretreatment
+       * @param  Object|undefined   newFile   读写
+       * @param  Object|undefined   oldFile   只读
+       * @param  Function           prevent   阻止回调
+       * @return undefined
+       */
+      inputFilter: function (newFile, oldFile, prevent) {
+        if (newFile && !oldFile) {
+          // 过滤不是图片后缀的文件
+          if (!/\.(jpeg|jpe|jpg|gif|png|webp)$/i.test(newFile.name)) {
+            return prevent()
+          }
+        }
+
+        // 创建 blob 字段 用于图片预览
+        newFile.blob = ''
+        let URL = window.URL || window.webkitURL
+        if (URL && URL.createObjectURL) {
+          newFile.blob = URL.createObjectURL(newFile.file)
+        }
       }
     }
   }
@@ -55,74 +85,15 @@
   body { font-family: 'Source Sans Pro', sans-serif; }
 
   #wrapper {
+    width: 100vw;
+    height: 100vh;
+    padding: 60px 80px;
     background:
       radial-gradient(
         ellipse at top left,
         rgba(255, 255, 255, 1) 40%,
         rgba(229, 229, 229, .9) 100%
       );
-    height: 100vh;
-    padding: 60px 80px;
-    width: 100vw;
   }
 
-  #logo {
-    height: auto;
-    margin-bottom: 20px;
-    width: 420px;
-  }
-
-  main {
-    display: flex;
-    justify-content: space-between;
-  }
-
-  main > div { flex-basis: 50%; }
-
-  .left-side {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .welcome {
-    color: #555;
-    font-size: 23px;
-    margin-bottom: 10px;
-  }
-
-  .title {
-    color: #2c3e50;
-    font-size: 20px;
-    font-weight: bold;
-    margin-bottom: 6px;
-  }
-
-  .title.alt {
-    font-size: 18px;
-    margin-bottom: 10px;
-  }
-
-  .doc p {
-    color: black;
-    margin-bottom: 10px;
-  }
-
-  .doc button {
-    font-size: .8em;
-    cursor: pointer;
-    outline: none;
-    padding: 0.75em 2em;
-    border-radius: 2em;
-    display: inline-block;
-    color: #fff;
-    background-color: #4fc08d;
-    transition: all 0.15s ease;
-    box-sizing: border-box;
-    border: 1px solid #4fc08d;
-  }
-
-  .doc button.alt {
-    color: #42b983;
-    background-color: transparent;
-  }
 </style>
