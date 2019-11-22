@@ -1,6 +1,9 @@
 'use strict'
 
 import { app, BrowserWindow } from 'electron'
+// const addEventDragStart = require('./addEventDragStart')
+const setTray = require('./tray')
+const setMenu = require('./menu')
 
 /**
  * Set `__static` path to static files in production
@@ -20,19 +23,23 @@ function createWindow () {
    * Initial window options
    */
   mainWindow = new BrowserWindow({
-    width: 1000,
+    width: '1200',
     height: 800,
     useContentSize: true
   })
 
   mainWindow.loadURL(winURL)
+  setMenu()
 
   mainWindow.on('closed', () => {
     mainWindow = null
   })
 }
 
-app.on('ready', createWindow)
+app.on('ready', () => {
+  createWindow()
+  setTray()
+})
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

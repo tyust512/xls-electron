@@ -1,99 +1,69 @@
 <template>
-  <div id="wrapper">
-    <!-- <SystemInformation></SystemInformation> -->
-
-    <ul>
-      <li v-for="file in files" :key="file">
-        {{file.name}} - Error: {{file.error}}, Success: {{file.success}}
-      </li>
-    </ul>
-    <file-upload
-      ref="upload"
-      v-model="files"
-      post-action="/post.method"
-      put-action="/put.method"
-      @input-file="inputFile"
-      @input-filter="inputFilter"
+  <div class="wrapper">
+    <el-upload
+      class="upload-block"
+      drag
+      :limit="1"
+      accept=".xls, .xlsx, .xlsm"
+      action="https://jsonplaceholder.typicode.com/posts/"
+      :auto-upload="false"
+      :on-change="mainChangeHandler"
     >
-    上传文件
-    </file-upload>
-    <button v-show="!$refs.upload || !$refs.upload.active" @click.prevent="$refs.upload.active = true" type="button">开始上传</button>
-    <button v-show="$refs.upload && $refs.upload.active" @click.prevent="$refs.upload.active = false" type="button">停止上传</button>
+      <i class="el-icon-upload"></i>
+      <div class="el-upload__text">将主Excel拖到此处，或<em>点击上传</em></div>
+      <div class="el-upload__tip" slot="tip">支持1个Excel</div>
+    </el-upload>
+
+    <el-upload
+      class="upload-block"
+      drag
+      accept=".xls, .xlsx, .xlsm"
+      action="https://jsonplaceholder.typicode.com/posts/"
+      multiple
+      :auto-upload="false"
+      :on-change="otherChangeHandler"
+    >
+      <i class="el-icon-upload"></i>
+      <div class="el-upload__text">将次Excel拖到此处，或<em>点击上传</em></div>
+      <div class="el-upload__tip" slot="tip">支持多个Excel</div>
+    </el-upload>
   </div>
 </template>
 
 <script>
   export default {
     name: 'landing-page',
-    data: function () {
+    data () {
       return {
-        files: []
+        mailFileList: [],
+        otherFileList: []
       }
     },
+    mounted () {
+      this.init()
+    },
     methods: {
-      /**
-       * Has changed
-       * @param  Object|undefined   newFile   只读
-       * @param  Object|undefined   oldFile   只读
-       * @return undefined
-       */
-      inputFile: function (newFile, oldFile) {
-        if (newFile && oldFile && !newFile.active && oldFile.active) {
-          // 获得相应数据
-          console.log('response', newFile.response)
-          if (newFile.xhr) {
-            //  获得响应状态码
-            console.log('status', newFile.xhr.status)
-          }
-        }
+      init () {
       },
-      /**
-       * Pretreatment
-       * @param  Object|undefined   newFile   读写
-       * @param  Object|undefined   oldFile   只读
-       * @param  Function           prevent   阻止回调
-       * @return undefined
-       */
-      inputFilter: function (newFile, oldFile, prevent) {
-        if (newFile && !oldFile) {
-          // 过滤不是图片后缀的文件
-          if (!/\.(jpeg|jpe|jpg|gif|png|webp)$/i.test(newFile.name)) {
-            return prevent()
-          }
-        }
+      mainChangeHandler (file, fileList) { this.mailFileList = fileList },
+      otherChangeHandler (file, fileList) { this.otherFileList = fileList },
+      filterRepeatedFile (fileList) {
+        if (!fileList || (Array.isArray(fileList) && fileList.length === 0)) return
 
-        // 创建 blob 字段 用于图片预览
-        newFile.blob = ''
-        let URL = window.URL || window.webkitURL
-        if (URL && URL.createObjectURL) {
-          newFile.blob = URL.createObjectURL(newFile.file)
-        }
+        fileList.array.forEach(file => {
+  
+        })
       }
     }
   }
 </script>
 
-<style>
-  @import url('https://fonts.googleapis.com/css?family=Source+Sans+Pro');
+<style lang="scss" scoped>
+  .wrapper {
+    padding: 20px;
+    display: flex;
+    justify-content: space-around;
 
-  * {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
+    .upload-block {}
   }
-
-  body { font-family: 'Source Sans Pro', sans-serif; }
-
-  #wrapper {
-    width: 100vw;
-    height: 100vh;
-    padding: 60px 80px;
-    background:
-      radial-gradient(
-        ellipse at top left,
-        rgba(255, 255, 255, 1) 40%,
-        rgba(229, 229, 229, .9) 100%
-      );
-  }
-
 </style>
