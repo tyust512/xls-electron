@@ -1,7 +1,7 @@
 'use strict'
 
 import { app, BrowserWindow } from 'electron'
-// const addEventDragStart = require('./addEventDragStart')
+const operateExcel = require('./excel')
 const setTray = require('./tray')
 const setMenu = require('./menu')
 
@@ -39,6 +39,7 @@ function createWindow () {
 app.on('ready', () => {
   createWindow()
   setTray()
+  operateExcel()
 })
 
 app.on('window-all-closed', () => {

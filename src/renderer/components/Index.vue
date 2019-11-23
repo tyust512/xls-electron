@@ -32,11 +32,11 @@
 
 <script>
   export default {
-    name: 'landing-page',
+    name: 'main-index',
     data () {
       return {
-        mailFileList: [],
-        otherFileList: []
+        mailFileObj: {},
+        otherFileObj: {}
       }
     },
     mounted () {
@@ -45,14 +45,25 @@
     methods: {
       init () {
       },
-      mainChangeHandler (file, fileList) { this.mailFileList = fileList },
-      otherChangeHandler (file, fileList) { this.otherFileList = fileList },
-      filterRepeatedFile (fileList) {
+      mainChangeHandler (file, fileList) {
+        this.filterRepeatedFile(fileList, this.mailFileObj)
+      },
+      otherChangeHandler (file, fileList) {
+        this.filterRepeatedFile(fileList, this.otherFileObj)
+      },
+      filterRepeatedFile (fileList, objSaveTo) {
         if (!fileList || (Array.isArray(fileList) && fileList.length === 0)) return
 
         fileList.array.forEach(file => {
-  
+          const {path} = file.raw
+
+          if (!objSaveTo[path]) {
+            objSaveTo[path] = file
+          }
         })
+      },
+      informMainThread() {
+        
       }
     }
   }
