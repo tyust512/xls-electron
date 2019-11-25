@@ -36,7 +36,7 @@
     data () {
       return {
         mailFileObj: {},
-        otherFileObj: {}
+        otherFileObj: {},
       }
     },
     mounted () {
@@ -47,14 +47,16 @@
       },
       mainChangeHandler (file, fileList) {
         this.filterRepeatedFile(fileList, this.mailFileObj)
+        this.informMain('send-excels-main', Object.keys(this.mailFileObj))
       },
       otherChangeHandler (file, fileList) {
         this.filterRepeatedFile(fileList, this.otherFileObj)
+        this.informMain('send-excels-others', Object.keys(this.otherFileObj))
       },
       filterRepeatedFile (fileList, objSaveTo) {
         if (!fileList || (Array.isArray(fileList) && fileList.length === 0)) return
 
-        fileList.array.forEach(file => {
+        fileList.forEach(file => {
           const {path} = file.raw
 
           if (!objSaveTo[path]) {
@@ -62,10 +64,20 @@
           }
         })
       },
-      informMainThread() {
+      informMain (eventName, params) {
+        if (!this.$electron) return
         
-      }
-    }
+        this.$electron.ipcRenderer.send(eventName, params)
+      },
+      receiveFromMain () {
+        if (!this.$electron) return
+
+        this.$electron.ipcRenderer.on('', () => {
+
+        })
+      },
+
+    },
   }
 </script>
 
@@ -74,7 +86,5 @@
     padding: 20px;
     display: flex;
     justify-content: space-around;
-
-    .upload-block {}
   }
 </style>

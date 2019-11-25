@@ -17,9 +17,9 @@
   export default {
     data () {
       return {
-        versionObj: process.versions
+        versionObj: process.versions,
       }
-    }
+    },
   }
 </script>
 

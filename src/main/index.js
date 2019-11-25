@@ -1,6 +1,6 @@
 'use strict'
 
-import { app, BrowserWindow } from 'electron'
+const { app, BrowserWindow } = require('electron') 
 const operateExcel = require('./excel')
 const setTray = require('./tray')
 const setMenu = require('./menu')
@@ -9,14 +9,22 @@ const setMenu = require('./menu')
  * Set `__static` path to static files in production
  * https://simulatedgreg.gitbooks.io/electron-vue/content/en/using-static-assets.html
  */
-if (process.env.NODE_ENV !== 'development') {
+const isDev = process.env.NODE_ENV === 'development'
+
+if (!isDev) {
   global.__static = require('path').join(__dirname, '/static').replace(/\\/g, '\\\\')
 }
 
 let mainWindow
-const winURL = process.env.NODE_ENV === 'development'
-  ? `http://localhost:9080`
+const winURL = isDev
+  ? 'http://localhost:9080'
   : `file://${__dirname}/index.html`
+
+// 使外部debug attach 到主线程上
+// https://simulatedgreg.gitbooks.io/electron-vue/content/en/debugging-production.html
+if (isDev) {
+  app.commandLine.appendSwitch('inspect', '5858')
+}
 
 function createWindow () {
   /**
@@ -25,7 +33,7 @@ function createWindow () {
   mainWindow = new BrowserWindow({
     width: '1200',
     height: 800,
-    useContentSize: true
+    useContentSize: true,
   })
 
   mainWindow.loadURL(winURL)

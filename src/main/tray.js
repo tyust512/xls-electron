@@ -8,10 +8,10 @@ function setTray () {
   const contextMenu = Menu.buildFromTemplate([
     {
       label: '学习，加油',
-      type: 'radio'
+      type: 'radio',
     },
     {
-      label: '减肥，加油'
+      label: '减肥，加油',
     }
   ])
 

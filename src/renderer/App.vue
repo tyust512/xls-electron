@@ -6,7 +6,7 @@
 
 <script>
   export default {
-    name: 'xls-electron'
+    name: 'xls-electron',
   }
 </script>
 
