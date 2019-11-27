@@ -1,61 +1,91 @@
 <template>
-  <div class="wrapper">
-    <el-upload
-      class="upload-block"
-      drag
-      :limit="1"
-      accept=".xls, .xlsx, .xlsm"
-      action="https://jsonplaceholder.typicode.com/posts/"
-      :auto-upload="false"
-      :on-change="mainChangeHandler"
-    >
-      <i class="el-icon-upload"></i>
-      <div class="el-upload__text">将主Excel拖到此处，或<em>点击上传</em></div>
-      <div class="el-upload__tip" slot="tip">支持1个Excel</div>
-    </el-upload>
+  <div>
+    <article class="wrapper">
+      <el-upload
+        class="upload-block"
+        drag
+        :limit="1"
+        accept=".xlsx"
+        action="https://jsonplaceholder.typicode.com/posts/"
+        :auto-upload="false"
+        :on-change="mainChangeHandler"
+        :on-remove="mainChangeHandler"
+      >
+        <i class="el-icon-upload"></i>
+        <div class="el-upload__text">将主Excel拖到此处，或<em>点击上传</em></div>
+        <div class="el-upload__tip" slot="tip">支持1个xlsx格式的Excel</div>
+      </el-upload>
 
-    <el-upload
-      class="upload-block"
-      drag
-      accept=".xls, .xlsx, .xlsm"
-      action="https://jsonplaceholder.typicode.com/posts/"
-      multiple
-      :auto-upload="false"
-      :on-change="otherChangeHandler"
-    >
-      <i class="el-icon-upload"></i>
-      <div class="el-upload__text">将次Excel拖到此处，或<em>点击上传</em></div>
-      <div class="el-upload__tip" slot="tip">支持多个Excel</div>
-    </el-upload>
+      <el-upload
+        class="upload-block"
+        drag
+        accept=".xlsx"
+        action="https://jsonplaceholder.typicode.com/posts/"
+        multiple
+        :auto-upload="false"
+        :on-change="otherChangeHandler"
+        :on-remove="otherChangeHandler"
+      >
+        <i class="el-icon-upload"></i>
+        <div class="el-upload__text">将次Excel拖到此处，或<em>点击上传</em></div>
+        <div class="el-upload__tip" slot="tip">支持多个xlsx格式的Excel</div>
+      </el-upload>
+    </article>
+
+    <!-- 开始解析 -->
+    <el-row type="flex" justify="center" style="margin-top: 100px;">
+      <el-button type="primary" @click="beginToParse">开始解析</el-button>
+    </el-row>
   </div>
 </template>
 
 <script>
+  import {messageMixins} from '../mixins/index'
+  import {showTip} from '../utils/index'
+
   export default {
     name: 'main-index',
+    mixins: [messageMixins],
     data () {
       return {
-        mailFileObj: {},
+        mainFileObj: {},
         otherFileObj: {},
+        mainFilePathList: [],
+        otherFilePathList: [],
       }
     },
-    mounted () {
-      this.init()
+    computed: {
+    },
+    watch: {
+    },
+    created () {
+      this.addListenerToMain()
     },
     methods: {
-      init () {
+      async addListenerToMain() {
+        this.receiveFromMain('main-message', function callback(event, result) {
+          const {msg, type, needTip} = result 
+  
+          if (needTip) {
+            showTip(msg, type)
+          }
+        })
       },
       mainChangeHandler (file, fileList) {
-        this.filterRepeatedFile(fileList, this.mailFileObj)
-        this.informMain('send-excels-main', Object.keys(this.mailFileObj))
+        this.mainFileObj = this.transferToObj(fileList)
+        this.mainFilePathList = Object.keys(this.mainFileObj)
       },
       otherChangeHandler (file, fileList) {
-        this.filterRepeatedFile(fileList, this.otherFileObj)
-        this.informMain('send-excels-others', Object.keys(this.otherFileObj))
+        this.otherFileObj = this.transferToObj(fileList)
+        this.otherFilePathList = Object.keys(this.otherFileObj)
       },
-      filterRepeatedFile (fileList, objSaveTo) {
-        if (!fileList || (Array.isArray(fileList) && fileList.length === 0)) return
-
+      // 把数组文件list转变成key-value的对象, 方便去重
+      transferToObj (fileList) {
+        const objSaveTo = {}
+        if (!fileList || (Array.isArray(fileList) && fileList.length === 0)) {
+          return objSaveTo
+        }
+        // 每次都重置, 再保存进去
         fileList.forEach(file => {
           const {path} = file.raw
 
@@ -63,17 +93,31 @@
             objSaveTo[path] = file
           }
         })
+
+        return objSaveTo
       },
-      informMain (eventName, params) {
-        if (!this.$electron) return
+
+      beginToParse () {
+        const mainFilePathList = this.mainFilePathList
+        const otherFilePathList = this.otherFilePathList
+        let tip
+        if (mainFilePathList.length < 1) {
+          tip = '请选择主Excel'
+        }
+        if (otherFilePathList < 1) {
+          tip = '请选择次Excel'
+        }
+        if (tip !== undefined) {
+          this.$message({
+            message: tip,
+            type: 'warning',
+          })
+          return
+        }
         
-        this.$electron.ipcRenderer.send(eventName, params)
-      },
-      receiveFromMain () {
-        if (!this.$electron) return
-
-        this.$electron.ipcRenderer.on('', () => {
-
+        this.informMain('send-excels', {
+          'mainExcels': mainFilePathList, 
+          'otherExcels': otherFilePathList,
         })
       },
 

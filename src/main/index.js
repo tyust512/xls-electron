@@ -1,9 +1,11 @@
-'use strict'
+// 'use strict'
 
 const { app, BrowserWindow } = require('electron') 
-const operateExcel = require('./excel')
+// const operateExcel = require('./excel')
+import operateExcel from './excel'
 const setTray = require('./tray')
 const setMenu = require('./menu')
+// import setMenu from './menu'
 
 /**
  * Set `__static` path to static files in production
