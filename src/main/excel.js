@@ -4,13 +4,20 @@ const series = require('async/series')
 
 let render
 
-function postMessageToRender({msg, type='error', needTip=false}) {
+/**
+ * 
+ * @param {msg} param0 
+ * @param {type} param0 
+ * @param {needTip} 是否需要弹框提示 
+ * @param {postAction} 需要执行的操作 
+ */
+function postMessageToRender({msg, type='error', needTip=false, postAction}) {
   if (!render) {
     return
   }
 
   render.sender.send('main-message', {
-    msg, type, needTip,
+    msg, type, needTip, postAction,
   })
 }
 
@@ -28,12 +35,15 @@ function addEventReadExcels () {
     for (let eventName in params) {
       const filePathList = params[eventName]
       filePathList.forEach(filePath => {
-        actionList.push(() => readExcel(filePath, eventName))
+        actionList.push((callback) => {
+          readExcel(filePath, eventName)
+          callback(null, filePath)
+        })
       })
     }
 
      // 保存完所有对应的数据后, 开始搜集数据
-    series(actionList, (...params) => {
+    series(actionList, (error, result) => {
       operateData(dataCache)
 
       // 获取数据
@@ -90,7 +100,7 @@ function addEventReadExcels () {
         }
 
         index++
-      });
+      })
 
       return sheetObj.worksheet
     }
@@ -143,7 +153,7 @@ function addEventReadExcels () {
 
     //分别保存数据数据
     function saveData(worksheet, eventType, path) {
-      dataCache[eventType] = dataCache.eventType || {}
+      dataCache[eventType] = dataCache[eventType] || {}
 
       const path_coordinate = coordinateCache[eventType]
 
@@ -160,10 +170,10 @@ function addEventReadExcels () {
       const {x, y} = path_coordinate[path]
       
       dataCache[eventType][path] = []
-      const dobCol = worksheet.getColumn(y)
+      const dobCol = worksheet.getColumn(x)
 
       dobCol.eachCell({ includeEmpty: true }, function(cell, rowNumber) {
-        if (rowNumber >= x) {
+        if (rowNumber >= y) {
           dataCache[eventType][path].push(cell.value)
         }
       })

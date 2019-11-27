@@ -64,7 +64,7 @@
     methods: {
       async addListenerToMain() {
         this.receiveFromMain('main-message', function callback(event, result) {
-          const {msg, type, needTip} = result 
+          const {msg, type, needTip, postAction} = result 
   
           if (needTip) {
             showTip(msg, type)
