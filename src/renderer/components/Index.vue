@@ -36,6 +36,11 @@
     <el-row type="flex" justify="center" style="margin-top: 100px;">
       <el-button type="primary" @click="beginToParse">开始解析</el-button>
     </el-row>
+
+    <!-- 结果 -->
+    <section class="blackboard">
+
+    </section>
   </div>
 </template>
 
@@ -63,11 +68,15 @@
     },
     methods: {
       async addListenerToMain() {
-        this.receiveFromMain('main-message', function callback(event, result) {
-          const {msg, type, needTip} = result 
+        this.receiveFromMain('main-message', (event, result) => {
+          const {msg, type, needTip, postAction} = result 
   
           if (needTip) {
             showTip(msg, type)
+          }
+
+          if (postAction instanceof Function) {
+            postAction.apply(this)
           }
         })
       },

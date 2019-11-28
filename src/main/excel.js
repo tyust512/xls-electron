@@ -4,13 +4,20 @@ const parallel = require('async/parallel')
 
 let render
 
-function postMessageToRender({msg, type='error', needTip=false}) {
+/**
+ * 
+ * @param {msg} param0 
+ * @param {type} param0 
+ * @param {needTip} 是否需要弹框提示 
+ * @param {postAction} 需要执行的操作 
+ */
+function postMessageToRender({msg, type='error', needTip=false, postAction, ...otherParams}) {
   if (!render) {
     return
   }
 
   render.sender.send('main-message', {
-    msg, type, needTip,
+    msg, type, needTip, postAction, ...otherParams,
   })
 }
 
@@ -28,29 +35,34 @@ function addEventReadExcels () {
     for (let eventName in params) {
       const filePathList = params[eventName]
       filePathList.forEach(filePath => {
-        actionList.push(() => readExcel(filePath, eventName))
+        actionList.push((callback) => {
+          readExcel(filePath, eventName, callback)
+        })
       })
     }
 
-     // 保存完所有对应的数据后, 开始搜集数据
-    parallel(actionList, (...params) => {
-      operateData(dataCache)
+     // 处理完所有excel数据的promise后, 开始解析数据
+    parallel(actionList,  (error) => {
+      if (error) {
+        postMessageToRender({
+          msg: `解析出错: ${error.stack}`,
+          needTip: true,
+        }) 
 
-      // 获取数据
-      function operateData(dataCache) {
-        if (!dataCache || Object.keys(dataCache).length < 1) {
-          postMessageToRender({
-            msg: '程序错误, excel中没有解析到数据',
-            needTip: true,
-          })
-
-          return 
-        }
+        return 
+      } else {
+        postMessageToRender({
+          msg: 'excel解析成功, 开始进行数据筛选',
+          type: 'success',
+          needTip: true,
+        })
       }
+
+      operateData(dataCache)
     })
     
     // 读取表格
-    function readExcel (path, eventType) {
+    function readExcel (path, eventType, callback) {
       if (!path) {
         return
       }
@@ -59,23 +71,33 @@ function addEventReadExcels () {
 
       return workbook.xlsx.readFile(path)
         .then(() => {
-          // 1 读取表格1
-          const worksheet = getFirstWorksheet(workbook)
-          if (!worksheet) {
+          try {
+            // 1 读取表格1
+            const worksheet = getFirstWorksheet(workbook)
+            if (!worksheet) {
+              postMessageToRender({
+                msg: `${path}中不存在表格1, 跳过此excel解析`,
+                needTip: true,
+              })
+              return
+            }
+  
+            // 2 保存所有excel, 查找数列的起始坐标
+            saveDataCoordinate(worksheet, eventType, path)
+  
+            // 3 保存列数据
+            saveData(worksheet, eventType, path)
+  
+            callback(null, path)
+              
+            return true
+
+          } catch (error) {
             postMessageToRender({
-              msg: `${path}中不存在表格1, 跳过此excel解析`,
+              msg: `解析${path}出现错误: ${error.stack}`,
               needTip: true,
             })
-            return
           }
-
-          // 2 保存所有excel, 查找数列的起始坐标
-          saveDataCoordinate(worksheet, eventType, path)
-
-          // 3 保存列数据
-          saveData(worksheet, eventType, path)
-
-          return true
         })
     }
 
@@ -90,7 +112,7 @@ function addEventReadExcels () {
         }
 
         index++
-      });
+      })
 
       return sheetObj.worksheet
     }
@@ -143,7 +165,7 @@ function addEventReadExcels () {
 
     //分别保存数据数据
     function saveData(worksheet, eventType, path) {
-      dataCache[eventType] = dataCache.eventType || {}
+      dataCache[eventType] = dataCache[eventType] || {}
 
       const path_coordinate = coordinateCache[eventType]
 
@@ -160,15 +182,106 @@ function addEventReadExcels () {
       const {x, y} = path_coordinate[path]
       
       dataCache[eventType][path] = []
-      const dobCol = worksheet.getColumn(y)
+      const dobCol = worksheet.getColumn(x)
 
       dobCol.eachCell({ includeEmpty: true }, function(cell, rowNumber) {
-        if (rowNumber >= x) {
+        if (rowNumber >= y) {
           dataCache[eventType][path].push(cell.value)
         }
       })
     }
   })
+}
+
+// 获取数据
+function operateData(dataCache) {
+  if (!dataCache || Object.keys(dataCache).length < 1) {
+    postMessageToRender({
+      msg: '程序错误, excel中没有解析到数据',
+      needTip: true,
+    })
+
+    return 
+  }
+
+  const {mainExcels, otherExcels} = dataCache
+
+  // 为了获取path, 单独对每一个数组进行遍历
+  const result = {}
+  Object.keys(otherExcels).forEach(path => {
+    const mainAllList = concatAllArray(mainExcels)
+    const missingList = findMissingItem(mainAllList, otherExcels[path])
+
+    if (Array.isArray(missingList) && missingList.length > 0) {
+      result[path] = missingList
+    }
+  })
+
+  if (Object.keys(result).length === 0) {
+    postMessageToRender({
+      msg: '所有次表数据都在主表中存在',
+      type: 'success',
+      needTip: true,
+    })
+  } else {
+    postMessageToRender({
+      msg: '次表数据不完全在主表中',
+      type: 'error',
+      needTip: true,
+      // postAction: function() { // 需要把结果挂到文档中去
+      //   const mountedEle = document.querySelector('.blackboard')
+        
+      //   for (const path in result) {
+      //     const div = document.createElement('div')
+      //     const h3 = document.createElement('h3')
+      //     h3.innerText = path
+
+      //     const ul = document.createElement('ul')
+
+      //     result[path].forEach(oneItem => {
+      //       const li = document.createElement('li')
+      //       li.innerText = oneItem
+      //       ul.appendChild(li)
+      //     })
+
+      //     div.appendChild(h3)
+      //     div.appendChild(ul)
+
+      //     mountedEle.appendChild(div)
+      //   }
+      // },
+    })
+  }
+
+  // 收集所有数据为1个数组
+  function concatAllArray(obj) {
+    let arr = []
+    Object.values(obj).forEach(oneArray => {
+      arr = arr.concat(oneArray)
+    })
+
+    return arr
+  }
+
+  function findMissingItem(mainList, oneOtherList) {
+    if (mainList.length < oneOtherList.length) {
+      postMessageToRender({
+        msg: '主表数据比次表数据少, 数据也许有问题',
+        needTip: true,
+      })
+
+      return 
+    }
+
+    return oneOtherList.filter(otherVal => {
+      if (mainList.includes(otherVal)) {
+        return false
+      } else {
+        return true
+      }
+    })
+  }
+
 }
 
 // 创建表格
