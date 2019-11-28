@@ -1,6 +1,6 @@
 const {ipcMain} = require('electron')
 const Excel = require('exceljs')
-const series = require('async/series')
+const parallel = require('async/parallel')
 
 let render
 
@@ -33,7 +33,7 @@ function addEventReadExcels () {
     }
 
      // 保存完所有对应的数据后, 开始搜集数据
-    series(actionList, (...params) => {
+    parallel(actionList, (...params) => {
       operateData(dataCache)
 
       // 获取数据
