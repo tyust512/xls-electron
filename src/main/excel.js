@@ -6,24 +6,33 @@ let render
 
 /**
  * 
- * @param {msg} param0 
- * @param {type} param0 
+ * @param {msg} msg
+ * @param {type} type
  * @param {needTip} 是否需要弹框提示 
- * @param {postAction} 需要执行的操作 
  */
-function postMessageToRender({msg, type='error', needTip=false, postAction, ...otherParams}) {
+function postMessageToRender({msg, type='error', needTip=false, ...otherParams}) {
   if (!render) {
     return
   }
 
-  render.sender.send('main-message', {
-    msg, type, needTip, postAction, ...otherParams,
+  let messageName = 'main-message'
+  if (otherParams.messageName) {
+    messageName = otherParams.messageName
+  }
+
+  render.sender.send(messageName, {
+    msg, type, needTip, ...otherParams,
   })
 }
 
 function addEventReadExcels () {
-  ipcMain.on('send-excels', function(event, params) {
+  ipcMain.on('send-excels', function(event, {mainExcels, otherExcels, ...otherParams}) {
     render = event
+    const fileObj = {
+      mainExcels, otherExcels,
+    }
+    const {columnName} = otherParams
+
     const actionList = []
 
     // 主 / 次表格, 开始查找的列的起始坐标
@@ -32,8 +41,8 @@ function addEventReadExcels () {
     // 主表数据
     const dataCache = {}
 
-    for (let eventName in params) {
-      const filePathList = params[eventName]
+    for (let eventName in fileObj) {
+      const filePathList = fileObj[eventName]
       filePathList.forEach(filePath => {
         actionList.push((callback) => {
           readExcel(filePath, eventName, callback)
@@ -121,7 +130,7 @@ function addEventReadExcels () {
     function saveDataCoordinate(worksheet, eventType, path) {
       coordinateCache[eventType] = coordinateCache.eventType || {}
 
-      const keyName = '电话'
+      const keyName = columnName
       const coordinate = getCoordinateOfKeyName(keyName,  worksheet)
       if (coordinate.x === 0 && coordinate.y === 0) {
         postMessageToRender({
@@ -219,37 +228,12 @@ function operateData(dataCache) {
 
   if (Object.keys(result).length === 0) {
     postMessageToRender({
-      msg: '所有次表数据都在主表中存在',
-      type: 'success',
-      needTip: true,
+      messageName: 'finish',
     })
   } else {
     postMessageToRender({
-      msg: '次表数据不完全在主表中',
-      type: 'error',
-      needTip: true,
-      // postAction: function() { // 需要把结果挂到文档中去
-      //   const mountedEle = document.querySelector('.blackboard')
-        
-      //   for (const path in result) {
-      //     const div = document.createElement('div')
-      //     const h3 = document.createElement('h3')
-      //     h3.innerText = path
-
-      //     const ul = document.createElement('ul')
-
-      //     result[path].forEach(oneItem => {
-      //       const li = document.createElement('li')
-      //       li.innerText = oneItem
-      //       ul.appendChild(li)
-      //     })
-
-      //     div.appendChild(h3)
-      //     div.appendChild(ul)
-
-      //     mountedEle.appendChild(div)
-      //   }
-      // },
+      messageName: 'inconsistent',
+      result,
     })
   }
 

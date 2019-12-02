@@ -34,7 +34,15 @@
 
     <!-- 开始解析 -->
     <el-row type="flex" justify="center" style="margin-top: 100px;">
-      <el-button type="primary" @click="beginToParse">开始解析</el-button>
+      <el-form :inline="true" style="width: 460px;">
+        <el-form-item label="列名" label-width="100px" prop="name">
+          <el-input v-model="columnName"></el-input>
+        </el-form-item>
+
+        <el-form-item>
+          <el-button type="primary" @click="beginToParse">开始解析</el-button>
+        </el-form-item>
+      </el-form>
     </el-row>
 
     <!-- 结果 -->
@@ -57,6 +65,9 @@
         otherFileObj: {},
         mainFilePathList: [],
         otherFilePathList: [],
+
+        columnName: '姓名',
+        loading: null,
       }
     },
     computed: {
@@ -65,20 +76,85 @@
     },
     created () {
       this.addListenerToMain()
+      this.addListenerFinish()
+      this.addListenerInconsistent()
     },
     methods: {
-      async addListenerToMain() {
-        this.receiveFromMain('main-message', (event, result) => {
-          const {msg, type, needTip, postAction} = result 
-  
+      addListenerToMain() {
+        function callback(event, msgObj) {
+          const {msg, type, needTip} = msgObj 
+
           if (needTip) {
             showTip(msg, type)
           }
+        }
 
-          if (postAction instanceof Function) {
-            postAction.apply(this)
+        this.receiveFromMain('main-message', callback)
+        
+      },
+      // 不完全匹配时
+      addListenerInconsistent() {
+        const _this = this
+        function callback(event, {result}) {
+          showTip('次表数据不完全在主表中', 'error')
+          _this.clearMountedEle()
+
+          if (!result) {
+            return
           }
-        })
+
+          const mountedEle = document.querySelector('.blackboard')
+          
+          for (const path in result) {
+            const div = document.createElement('div')
+            const h4 = document.createElement('h4')
+
+            div.style.cssText = 'margin-top: 30px;'
+            h4.innerText = path
+
+            const ol = document.createElement('ol')
+
+            result[path].forEach(oneItem => {
+              const li = document.createElement('li')
+              li.innerText = oneItem
+              ol.appendChild(li)
+            })
+
+            div.appendChild(h4)
+            div.appendChild(ol)
+
+            mountedEle.appendChild(div)
+          }
+
+          if (_this.loading) {
+            _this.$nextTick(() => { // 以服务的方式调用的 Loading 需要异步关闭
+              _this.loading.close()
+            })
+          }
+        }
+
+        this.receiveFromMain('inconsistent', callback)
+      },
+      // 表格解析完毕后进行展示, 
+      addListenerFinish() {
+        const _this = this
+        function callback() {
+          showTip('所有次表数据都在主表中存在', 'success')
+          _this.clearMountedEle()
+
+          if (_this.loading) {
+            _this.$nextTick(() => { // 以服务的方式调用的 Loading 需要异步关闭
+              _this.loading.close()
+            })
+          }
+        }
+
+        this.receiveFromMain('finish', callback)
+      },
+      // 清楚提示信息
+      clearMountedEle() {
+        const mountedEle = document.querySelector('.blackboard')
+        mountedEle.innerHTML = ''
       },
       mainChangeHandler (file, fileList) {
         this.mainFileObj = this.transferToObj(fileList)
@@ -109,13 +185,19 @@
       beginToParse () {
         const mainFilePathList = this.mainFilePathList
         const otherFilePathList = this.otherFilePathList
+        const columnName = this.columnName
         let tip
-        if (mainFilePathList.length < 1) {
-          tip = '请选择主Excel'
+
+        if (this.columnName === '') {
+          tip = '请填写要对比的列名, 需要精确匹配'
         }
         if (otherFilePathList < 1) {
           tip = '请选择次Excel'
         }
+        if (mainFilePathList.length < 1) {
+          tip = '请选择主Excel'
+        }
+
         if (tip !== undefined) {
           this.$message({
             message: tip,
@@ -124,9 +206,16 @@
           return
         }
         
+        this.loading = this.$loading({
+          lock: true,
+          text: 'loading',
+          spinner: 'el-icon-loading',
+        })
+
         this.informMain('send-excels', {
           'mainExcels': mainFilePathList, 
           'otherExcels': otherFilePathList,
+          columnName,
         })
       },
 
@@ -139,5 +228,10 @@
     padding: 20px;
     display: flex;
     justify-content: space-around;
+  }
+
+  .blackboard {
+    margin-top: 100px;
+    padding: 0 20px;
   }
 </style>
